@@ -10,12 +10,15 @@ class GenerateSource extends DefaultTask {
 
     @TaskAction
     void generate() {
-        def sourceFile = new File(getOutputDir(), "org/gradle/sample/Generated.java");
+        def sourceFile = new File(getOutputDir(), "org/gradle/sample/R.java");
         sourceFile.parentFile.mkdirs()
         sourceFile.text = '''
 package org.gradle.sample;
 
-public class Generated {
+public class R {
+    public static final class layout {
+        public static final int main=0x7f030000;
+    }
 }
 '''
     }

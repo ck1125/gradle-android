@@ -34,14 +34,18 @@ customizations.
 
 ## Usage
 
+Before you start, edit the `basic/local.properties` and `customized/local.properties` files to point at your local install
+of the Android SDK. Normally, these files would not be checked into source control, but would be generated when the
+project is bootstrapped.
+
 Try `./gradlew basic:tasks` in the root directory.
 
 You can also run:
 
 * `assemble` - builds all combinations of build type and product flavor
 * `assemble$BuildType` - build all flavors for the given build type.
-* `assemble$ProductFlavor_` - build all build types for the given product flavor.
-* `assemble$ProductFlavor$BuildType_` - build the given build type of the given product flavor.
+* `assemble$ProductFlavor` - build all build types for the given product flavor.
+* `assemble$ProductFlavor$BuildType` - build the given build type of the given product flavor.
 
 ## Implementation
 

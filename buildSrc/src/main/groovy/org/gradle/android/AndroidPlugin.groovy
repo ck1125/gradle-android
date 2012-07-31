@@ -14,6 +14,7 @@ class AndroidPlugin implements Plugin<Project> {
     private Project project
     private SourceSet main
     private GenerateSource generateSourceTask
+    private File sdkDir
 
     @Override
     void apply(Project project) {
@@ -25,6 +26,8 @@ class AndroidPlugin implements Plugin<Project> {
         def productFlavors = project.container(ProductFlavor)
 
         project.extensions.create('android', AndroidExtension, buildTypes, productFlavors)
+
+        findSdk(project)
 
         generateSourceTask = project.tasks.add('generateSource', GenerateSource)
         generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source") }
@@ -55,6 +58,25 @@ class AndroidPlugin implements Plugin<Project> {
         }
 
         project.tasks.assemble.dependsOn { variants.collect{ it.assembleTaskName} }
+    }
+
+    private void findSdk(Project project) {
+        def localProperties = project.file("local.properties")
+        if (!localProperties) {
+            throw new RuntimeException("No local.properties file found at ${localProperties}.")
+        }
+        Properties properties = new Properties()
+        localProperties.withInputStream { instr ->
+            properties.load(instr)
+        }
+        def sdkDirProp = properties.getProperty('sdk.dir')
+        if (!sdkDirProp) {
+            throw new RuntimeException("No sdk.dir property defined in local.properties file.")
+        }
+        sdkDir = new File(sdkDirProp)
+        if (!sdkDir.directory) {
+            throw new RuntimeException("The SDK directory '$sdkDir' specified in local.properties does not exist.")
+        }
     }
 
     private void addBuildType(BuildType buildType) {
@@ -115,6 +137,7 @@ class AndroidPlugin implements Plugin<Project> {
         compileTask.source main.java, buildType.sourceSet.java, productFlavor.sourceSet.java, generateSourceTask.outputs
         compileTask.classpath = project.files()
         compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/$variant.classesDirName") }
+        compileTask.options.bootClasspath = new File(sdkDir, "platforms/android-16/android.jar")
 
         // Add a jar task
         def jarTaskName = "jar${variant.name}"
