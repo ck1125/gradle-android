@@ -17,13 +17,13 @@ If you do not define any flavors for your product, a default flavor called `main
 From this, the plugin will add the appropriate tasks to build each combination of build type and product flavor. The
 plugin will also define the following source directories:
 
-* `src/main/java` - Java source to be included in all applications.
-* `src/main/res` - Resources to be included in all applications.
-* `src/main/AndroidManifest.xml' - The application manifest (currently shared by all applications).
-* `src/$BuildType/java` - Java source to be included in all applications with the given build type.
-* `src/$BuildType/res` - Java source to be included in all applications with the given build type.
-* `src/$ProductFlavor/java` - Resources to be included in all applications with the given product flavor.
-* `src/$ProductFlavor/res` - Resources to be included in all applications with the given product flavor.
+* `src/main/java` - Java source to be included in all application variants.
+* `src/main/res` - Resources to be included in all application variants.
+* `src/main/AndroidManifest.xml' - The application manifest (currently shared by all application variants).
+* `src/$BuildType/java` - Java source to be included in all application variants with the given build type.
+* `src/$BuildType/res` - Java source to be included in all application variants with the given build type.
+* `src/$ProductFlavor/java` - Resources to be included in all application variants with the given product flavor.
+* `src/$ProductFlavor/res` - Resources to be included in all application variants with the given product flavor.
 
 You can configure these locations by configuring the associated source set.
 
