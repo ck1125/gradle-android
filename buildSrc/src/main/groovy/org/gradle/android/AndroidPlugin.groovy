@@ -186,17 +186,24 @@ class AndroidPlugin implements Plugin<Project> {
         generateResources.androidManifestFile = project.file('src/main/AndroidManifest.xml')
         generateResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
-        // Add a task to generate resource package
+        // Add a task to generate application package
         def packageApp = project.tasks.add("package${variant.name}", GeneratePackage)
         packageApp.dependsOn generateResources, dexTask
-        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.apk") }
+        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}-unaligned.apk") }
         packageApp.sdkDir = sdkDir
         packageApp.conventionMapping.resourceFile = { generateResources.outputFile }
         packageApp.conventionMapping.dexFile = { dexTask.outputFile }
 
+        // Add a task to zip align application package
+        def alignApp = project.tasks.add("zipalign${variant.name}", ZipAlign)
+        alignApp.dependsOn packageApp
+        alignApp.conventionMapping.inputFile = { packageApp.outputFile }
+        alignApp.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.apk") }
+        alignApp.sdkDir = sdkDir
+
         // Add an assemble task
         def assembleTask = project.tasks.add(variant.assembleTaskName)
-        assembleTask.dependsOn packageApp
+        assembleTask.dependsOn alignApp
         assembleTask.description = "Assembles the ${productFlavor.name} ${buildType.name} application"
         assembleTask.group = "Build"
     }

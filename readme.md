@@ -64,4 +64,4 @@ For each variant (product-flavor, build-type):
 * Packages the resource into `build/libs`
 * Assembles the application package into `build/libs`.
 
-Currently, the plugin signs all applications using the debug key, and does not byte align them.
+Currently, the plugin signs all applications using the debug key.
