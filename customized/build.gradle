@@ -20,8 +20,9 @@ android {
 
 // You can configure the various source locations
 sourceSets {
-    // Add an additional main source directory
+    // Add an additional main source directory and resource directory
     main.java.srcDir 'some-dir'
+    main.resources.srcDir 'some-resources'
 
     // A source set for each product flavor and build type is also available for configuration
     free.java.srcDir 'some-free-dir'

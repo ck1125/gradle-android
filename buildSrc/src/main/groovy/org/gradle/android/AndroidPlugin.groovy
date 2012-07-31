@@ -13,7 +13,6 @@ class AndroidPlugin implements Plugin<Project> {
     private final Map<String, ProductFlavorDimension> productFlavors = [:]
     private Project project
     private SourceSet main
-    private GenerateResources generateSourceTask
     private File sdkDir
     private AndroidExtension extension
 
@@ -30,12 +29,9 @@ class AndroidPlugin implements Plugin<Project> {
 
         findSdk(project)
 
-        generateSourceTask = project.tasks.add('generateSource', GenerateResources)
-        generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source") }
-        generateSourceTask.sdkDir = sdkDir
-        generateSourceTask.sourceDirectories = [project.file('src/main/res')].findAll {it.exists() }
-        generateSourceTask.androidManifestFile = project.file('src/main/AndroidManifest.xml')
-        generateSourceTask.conventionMapping.includeFiles = { [getRuntimeJar()] }
+        project.sourceSets.all { sourceSet ->
+            sourceSet.resources.srcDirs = ["src/$sourceSet.name/res"]
+        }
 
         main = project.sourceSets.add('main')
 
@@ -144,12 +140,22 @@ class AndroidPlugin implements Plugin<Project> {
         buildType.variants << variant
         productFlavor.variants << variant
 
+        // Add a task to generate resource source files
+        def generateSourceTask = project.tasks.add("generateSource${variant.name}", GenerateResources)
+        generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source/$variant.dirName") }
+        generateSourceTask.sdkDir = sdkDir
+        generateSourceTask.conventionMapping.sourceDirectories =  {
+            (main.resources.srcDirs + productFlavor.sourceSet.resources.srcDirs + buildType.sourceSet.resources.srcDirs).findAll { it.exists() }
+        }
+        generateSourceTask.androidManifestFile = project.file('src/main/AndroidManifest.xml')
+        generateSourceTask.conventionMapping.includeFiles = { [getRuntimeJar()] }
+
         // Add a compile task
         def compileTaskName = "compile${variant.name}"
         def compileTask = project.tasks.add(compileTaskName, Compile)
         compileTask.source main.java, buildType.sourceSet.java, productFlavor.sourceSet.java, generateSourceTask.outputs
         compileTask.classpath = project.files()
-        compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/$variant.classesDirName") }
+        compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/$variant.dirName") }
         // TODO - make this use convention mapping
         compileTask.doFirst {
             options.bootClasspath = getRuntimeJar()
@@ -183,7 +189,7 @@ class AndroidPlugin implements Plugin<Project> {
             return "assemble$name"
         }
 
-        String getClassesDirName() {
+        String getDirName() {
             return "$productFlavor.name/$buildType.name"
         }
     }

@@ -16,10 +16,12 @@ From this, the plugin will add the appropriate tasks to build each combination o
 plugin will also define the following source directories:
 
 * `src/main/java` - Java source to be included in all applications.
-* `src/main/res` - Resources to be included in all applications
-* `src/main/AndroidManifest.xml'
-* `src/$BuildType/java`
-* `src/$ProductFlavor/java`
+* `src/main/res` - Resources to be included in all applications.
+* `src/main/AndroidManifest.xml' - The application manifest (currently shared by all applications).
+* `src/$BuildType/java` - Java source to be included in all applications with the given build type.
+* `src/$BuildType/res` - Java source to be included in all applications with the given build type.
+* `src/$ProductFlavor/java` - Resources to be included in all applications with the given product flavor.
+* `src/$ProductFlavor/res` - Resources to be included in all applications with the given product flavor.
 
 You can configure these locations by configuring the associated source set.
 
