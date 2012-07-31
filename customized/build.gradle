@@ -3,6 +3,9 @@ apply plugin: 'android'
 version='1.0'
 
 android {
+    // Define the target platform
+    target 'android-16'
+
     // Define the flavors of our product
     productFlavors {
         free

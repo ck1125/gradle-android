@@ -13,8 +13,9 @@ class AndroidPlugin implements Plugin<Project> {
     private final Map<String, ProductFlavorDimension> productFlavors = [:]
     private Project project
     private SourceSet main
-    private GenerateSource generateSourceTask
+    private GenerateResources generateSourceTask
     private File sdkDir
+    private AndroidExtension extension
 
     @Override
     void apply(Project project) {
@@ -25,12 +26,16 @@ class AndroidPlugin implements Plugin<Project> {
         def buildTypes = project.container(BuildType)
         def productFlavors = project.container(ProductFlavor)
 
-        project.extensions.create('android', AndroidExtension, buildTypes, productFlavors)
+        extension = project.extensions.create('android', AndroidExtension, buildTypes, productFlavors)
 
         findSdk(project)
 
-        generateSourceTask = project.tasks.add('generateSource', GenerateSource)
+        generateSourceTask = project.tasks.add('generateSource', GenerateResources)
         generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source") }
+        generateSourceTask.sdkDir = sdkDir
+        generateSourceTask.sourceDirectories = [project.file('src/main/res')].findAll {it.exists() }
+        generateSourceTask.androidManifestFile = project.file('src/main/AndroidManifest.xml')
+        generateSourceTask.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
         main = project.sourceSets.add('main')
 
@@ -52,12 +57,20 @@ class AndroidPlugin implements Plugin<Project> {
         buildTypes.add(new BuildType('release'))
 
         project.afterEvaluate {
-            if (productFlavors.isEmpty() ) {
+            if (productFlavors.isEmpty()) {
                 productFlavors.add(new ProductFlavor('main'))
             }
         }
 
-        project.tasks.assemble.dependsOn { variants.collect{ it.assembleTaskName} }
+        project.tasks.assemble.dependsOn { variants.collect { it.assembleTaskName} }
+    }
+
+    private File getRuntimeJar() {
+        def platformDir = new File(sdkDir, "platforms/${extension.target}")
+        if (!platformDir.exists()) {
+            throw new RuntimeException("Specified target '$extension.target' does not exist.")
+        }
+        new File(platformDir, "android.jar")
     }
 
     private void findSdk(Project project) {
@@ -137,7 +150,10 @@ class AndroidPlugin implements Plugin<Project> {
         compileTask.source main.java, buildType.sourceSet.java, productFlavor.sourceSet.java, generateSourceTask.outputs
         compileTask.classpath = project.files()
         compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/$variant.classesDirName") }
-        compileTask.options.bootClasspath = new File(sdkDir, "platforms/android-16/android.jar")
+        // TODO - make this use convention mapping
+        compileTask.doFirst {
+            options.bootClasspath = getRuntimeJar()
+        }
 
         // Add a jar task
         def jarTaskName = "jar${variant.name}"

@@ -6,6 +6,7 @@ import org.gradle.api.NamedDomainObjectContainer
 class AndroidExtension {
     final NamedDomainObjectContainer<BuildType> buildTypes
     final NamedDomainObjectContainer<ProductFlavor> productFlavors
+    String target = "android-16"
 
     AndroidExtension(NamedDomainObjectContainer<BuildType> buildTypes, NamedDomainObjectContainer<ProductFlavor> productFlavors) {
         this.buildTypes = buildTypes

@@ -15,7 +15,9 @@ If you do not define any flavors for your product, a default flavor called `main
 From this, the plugin will add the appropriate tasks to build each combination of build type and product flavor. The
 plugin will also define the following source directories:
 
-* `src/main/java`
+* `src/main/java` - Java source to be included in all applications.
+* `src/main/res` - Resources to be included in all applications
+* `src/main/AndroidManifest.xml'
 * `src/$BuildType/java`
 * `src/$ProductFlavor/java`
 
@@ -49,6 +51,6 @@ You can also run:
 
 ## Implementation
 
-* Generates some source into `build/source`
+* Generates resource source files into `build/source`
 * Compiles each variant (product-flavor, build-type) using source files (main-source-set, product-flavor-source-set, build-type-source-set, generated-source).
 * Assembles a jar for each variant into `build/libs`.
