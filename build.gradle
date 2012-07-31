@@ -1,0 +1,15 @@
+apply plugin: 'idea'
+apply plugin: 'android'
+
+version='1.0'
+
+android {
+    buildTypes {
+        debug
+        release
+    }
+    productFlavors {
+        free
+        paid
+    }
+}
