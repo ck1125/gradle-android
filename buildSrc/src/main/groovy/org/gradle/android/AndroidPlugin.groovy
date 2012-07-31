@@ -187,7 +187,7 @@ class AndroidPlugin implements Plugin<Project> {
         generateResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
         // Add a task to generate application package
-        def packageApp = project.tasks.add("package${variant.name}", GeneratePackage)
+        def packageApp = project.tasks.add("package${variant.name}", PackageApplication)
         packageApp.dependsOn generateResources, dexTask
         packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}-unaligned.apk") }
         packageApp.sdkDir = sdkDir
@@ -206,6 +206,12 @@ class AndroidPlugin implements Plugin<Project> {
         assembleTask.dependsOn alignApp
         assembleTask.description = "Assembles the ${productFlavor.name} ${buildType.name} application"
         assembleTask.group = "Build"
+
+        // Add a task to install the application package
+        def installApp = project.tasks.add("install${variant.name}", InstallApplication)
+        installApp.dependsOn alignApp
+        installApp.conventionMapping.packageFile = { alignApp.outputFile }
+        installApp.sdkDir = sdkDir
     }
 
     private static class AndroidAppVariant {

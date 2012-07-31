@@ -51,7 +51,8 @@ You can also run:
 * `assemble` - builds all combinations of build type and product flavor
 * `assemble$BuildType` - build all flavors for the given build type.
 * `assemble$ProductFlavor` - build all build types for the given product flavor.
-* `assemble$ProductFlavor$BuildType` - build the given build type of the given product flavor.
+* `assemble$ProductFlavor$BuildType` - build the given application variant.
+* `install$ProductFlavor$BuildType` - build and install the given application variant.
 
 ## Implementation
 

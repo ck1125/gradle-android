@@ -3,7 +3,7 @@ package org.gradle.android
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.*
 
-class GeneratePackage extends DefaultTask {
+class PackageApplication extends DefaultTask {
     @OutputFile
     File outputFile
 
