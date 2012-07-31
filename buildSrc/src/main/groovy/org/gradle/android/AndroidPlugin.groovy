@@ -13,6 +13,7 @@ class AndroidPlugin implements Plugin<Project> {
     private final Map<String, ProductFlavorDimension> productFlavors = [:]
     private Project project
     private SourceSet main
+    private GenerateSource generateSourceTask
 
     @Override
     void apply(Project project) {
@@ -24,6 +25,9 @@ class AndroidPlugin implements Plugin<Project> {
         def productFlavors = project.container(ProductFlavor)
 
         project.extensions.create('android', AndroidExtension, buildTypes, productFlavors)
+
+        generateSourceTask = project.tasks.add('generateSource', GenerateSource)
+        generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source") }
 
         main = project.sourceSets.add('main')
 
@@ -41,6 +45,9 @@ class AndroidPlugin implements Plugin<Project> {
             throw new UnsupportedOperationException("Removing product flavors is not implemented yet.")
         }
 
+        buildTypes.add(new BuildType('debug'))
+        buildTypes.add(new BuildType('release'))
+
         project.tasks.assemble.dependsOn { variants.collect{ it.assembleTaskName} }
     }
 
@@ -54,6 +61,8 @@ class AndroidPlugin implements Plugin<Project> {
         assembleBuildType.dependsOn {
             buildTypeDimension.variants.collect { it.assembleTaskName }
         }
+        assembleBuildType.description = "Assembles all ${buildType.name} applications"
+        assembleBuildType.group = "Build"
 
         productFlavors.values().each { flavor ->
             addVariant(buildTypeDimension, flavor)
@@ -70,6 +79,8 @@ class AndroidPlugin implements Plugin<Project> {
         assembleFlavour.dependsOn {
             productFlavorDimension.variants.collect { it.assembleTaskName }
         }
+        assembleFlavour.description = "Assembles all ${productFlavor.name} applications"
+        assembleFlavour.group = "Build"
 
         buildTypes.values().each { buildType ->
             addVariant(buildType, productFlavorDimension)
@@ -85,7 +96,7 @@ class AndroidPlugin implements Plugin<Project> {
         // Add a compile task
         def compileTaskName = "compile${variant.name}"
         def compileTask = project.tasks.add(compileTaskName, Compile)
-        compileTask.source main.java, buildType.sourceSet.java, productFlavor.sourceSet.java
+        compileTask.source main.java, buildType.sourceSet.java, productFlavor.sourceSet.java, generateSourceTask.outputs
         compileTask.classpath = project.files()
         compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/$variant.classesDirName") }
 
@@ -93,11 +104,13 @@ class AndroidPlugin implements Plugin<Project> {
         def jarTaskName = "jar${variant.name}"
         def jarTask = project.tasks.add(jarTaskName, Jar)
         jarTask.from compileTask
-        jarTask.conventionMapping.baseName = { "${project.archivesBaseName}-${productFlavor.productFlavor.name}-${buildType.buildType.name}" as String }
+        jarTask.conventionMapping.baseName = { "${project.archivesBaseName}-${productFlavor.name}-${buildType.name}" as String }
 
         // Add an assemble task
         def assembleTask = project.tasks.add(variant.assembleTaskName)
         assembleTask.dependsOn jarTask
+        assembleTask.description = "Assembles the ${productFlavor.name} ${buildType.name} application"
+        assembleTask.group = "Build"
     }
 
     private static class AndroidAppVariant {
@@ -130,6 +143,10 @@ class AndroidPlugin implements Plugin<Project> {
             this.sourceSet = sourceSet
         }
 
+        String getName() {
+            return buildType.name
+        }
+
         String getAssembleTaskName() {
             return "assemble${buildType.name.capitalize()}"
         }
@@ -143,6 +160,10 @@ class AndroidPlugin implements Plugin<Project> {
         ProductFlavorDimension(ProductFlavor productFlavor, SourceSet sourceSet) {
             this.productFlavor = productFlavor
             this.sourceSet = sourceSet
+        }
+
+        String getName() {
+            return productFlavor.name
         }
 
         String getAssembleTaskName() {
