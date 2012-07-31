@@ -3,6 +3,8 @@
 A prototype Gradle plugin to build Android applications. This is intended to be used to explore how such a plugin
 would look and to develop some ideas about how such a plugin would be implemented.
 
+The plugin is functional, if a bit rough, and can generate packaged applications ready to install.
+
 ## DSL
 
 The plugin adds 2 concepts to the Gradle DSL:
@@ -53,6 +55,13 @@ You can also run:
 
 ## Implementation
 
-* Generates resource source files into `build/source`
-* Compiles each variant (product-flavor, build-type) using source files (main-source-set, product-flavor-source-set, build-type-source-set, generated-source).
-* Assembles a jar for each variant into `build/libs`.
+For each variant (product-flavor, build-type):
+
+* Generates resource source files into `build/source` from resource directories (main-source-set, product-flavor-source-set, build-type-source-set)
+* Compile source files (main-source-set, product-flavor-source-set, build-type-source-set, generated-source).
+* Converts the bytecode into `build/libs`
+* Crunches resources in `build/resources`
+* Packages the resource into `build/libs`
+* Assembles the application package into `build/libs`.
+
+Currently, the plugin signs all applications using the debug key, and does not byte align them.

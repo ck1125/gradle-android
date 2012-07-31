@@ -176,7 +176,7 @@ class AndroidPlugin implements Plugin<Project> {
         }
 
         // Add a task to generate resource package
-        def generateResources = project.tasks.add("generate${variant.name}Resources", GenerateResourcePackage)
+        def generateResources = project.tasks.add("package${variant.name}Resources", GenerateResourcePackage)
         generateResources.dependsOn crunchTask
         generateResources.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.ap_") }
         generateResources.sdkDir = sdkDir
@@ -186,9 +186,17 @@ class AndroidPlugin implements Plugin<Project> {
         generateResources.androidManifestFile = project.file('src/main/AndroidManifest.xml')
         generateResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
+        // Add a task to generate resource package
+        def packageApp = project.tasks.add("package${variant.name}", GeneratePackage)
+        packageApp.dependsOn generateResources, dexTask
+        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.apk") }
+        packageApp.sdkDir = sdkDir
+        packageApp.conventionMapping.resourceFile = { generateResources.outputFile }
+        packageApp.conventionMapping.dexFile = { dexTask.outputFile }
+
         // Add an assemble task
         def assembleTask = project.tasks.add(variant.assembleTaskName)
-        assembleTask.dependsOn dexTask, generateResources
+        assembleTask.dependsOn packageApp
         assembleTask.description = "Assembles the ${productFlavor.name} ${buildType.name} application"
         assembleTask.group = "Build"
     }
