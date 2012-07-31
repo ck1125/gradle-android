@@ -48,6 +48,12 @@ class AndroidPlugin implements Plugin<Project> {
         buildTypes.add(new BuildType('debug'))
         buildTypes.add(new BuildType('release'))
 
+        project.afterEvaluate {
+            if (productFlavors.isEmpty() ) {
+                productFlavors.add(new ProductFlavor('main'))
+            }
+        }
+
         project.tasks.assemble.dependsOn { variants.collect{ it.assembleTaskName} }
     }
 
@@ -70,7 +76,12 @@ class AndroidPlugin implements Plugin<Project> {
     }
 
     private void addProductFlavor(ProductFlavor productFlavor) {
-        def sourceSet = project.sourceSets.add(productFlavor.name)
+        def sourceSet
+        if (productFlavor.name == 'main') {
+            sourceSet = main
+        } else {
+            sourceSet = project.sourceSets.add(productFlavor.name)
+        }
 
         def productFlavorDimension = new ProductFlavorDimension(productFlavor, sourceSet)
         productFlavors[productFlavor.name] = productFlavorDimension
@@ -81,6 +92,11 @@ class AndroidPlugin implements Plugin<Project> {
         }
         assembleFlavour.description = "Assembles all ${productFlavor.name} applications"
         assembleFlavour.group = "Build"
+
+        def testCompile = project.tasks.add("compile${productFlavor.name.capitalize()}Test")
+
+        def testJar = project.tasks.add("test${productFlavor.name.capitalize()}Jar")
+        testJar.dependsOn testCompile
 
         buildTypes.values().each { buildType ->
             addVariant(buildType, productFlavorDimension)

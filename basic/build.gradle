@@ -1,0 +1,7 @@
+//
+// A basic Android application that follows all the conventions
+//
+
+apply plugin: 'android'
+
+version='1.0'
