@@ -1,25 +1,20 @@
 package org.gradle.android
 
 import org.gradle.api.DefaultTask
-import org.gradle.api.tasks.TaskAction
-import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputDirectory
-import org.gradle.api.tasks.InputFiles
-import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.*
 
-class GenerateResources extends DefaultTask {
-    @OutputDirectory
-    File outputDir
+class GenerateResourcePackage extends DefaultTask {
+    @OutputFile
+    File outputFile
 
     @Input
     File sdkDir
 
     @InputFiles
-    Iterable<File> sourceDirectories = []
+    Iterable<File> sourceDirectories
 
     @InputFiles
-    Iterable<File> includeFiles = []
+    Iterable<File> includeFiles
 
     @InputFile
     File androidManifestFile
@@ -30,8 +25,10 @@ class GenerateResources extends DefaultTask {
             executable = new File(getSdkDir(), "platform-tools/aapt")
             args 'package'
             args '-f'
-            args '-m'
-            args '-J', getOutputDir()
+            args '--debug-mode'
+            args '--no-crunch'
+            args '--generate-dependencies'
+            args '-F', getOutputFile()
             args '-M', getAndroidManifestFile()
             getSourceDirectories().each {
                 args '-S', it

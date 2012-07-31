@@ -5,7 +5,6 @@ import org.gradle.api.Plugin
 import org.gradle.api.plugins.JavaBasePlugin
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.compile.Compile
-import org.gradle.api.tasks.bundling.Jar
 
 class AndroidPlugin implements Plugin<Project> {
     private final Set<AndroidAppVariant> variants = []
@@ -141,7 +140,7 @@ class AndroidPlugin implements Plugin<Project> {
         productFlavor.variants << variant
 
         // Add a task to generate resource source files
-        def generateSourceTask = project.tasks.add("generateSource${variant.name}", GenerateResources)
+        def generateSourceTask = project.tasks.add("generate${variant.name}Source", GenerateResourceSource)
         generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source/$variant.dirName") }
         generateSourceTask.sdkDir = sdkDir
         generateSourceTask.conventionMapping.sourceDirectories =  {
@@ -161,15 +160,35 @@ class AndroidPlugin implements Plugin<Project> {
             options.bootClasspath = getRuntimeJar()
         }
 
-        // Add a jar task
-        def jarTaskName = "jar${variant.name}"
-        def jarTask = project.tasks.add(jarTaskName, Jar)
-        jarTask.from compileTask
-        jarTask.conventionMapping.baseName = { "${project.archivesBaseName}-${productFlavor.name}-${buildType.name}" as String }
+        // Add a dex task
+        def dexTaskName = "dex${variant.name}"
+        def dexTask = project.tasks.add(dexTaskName, Dex)
+        dexTask.sdkDir = sdkDir
+        dexTask.conventionMapping.sourceFiles = { project.files(compileTask.outputs) }
+        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.dex") }
+
+        // Add a task to crunch resource files
+        def crunchTask = project.tasks.add("crunch${variant.name}Resources", CrunchResources)
+        crunchTask.conventionMapping.outputDir = { project.file("$project.buildDir/resources/$variant.dirName") }
+        crunchTask.sdkDir = sdkDir
+        crunchTask.conventionMapping.sourceDirectories =  {
+            (main.resources.srcDirs + productFlavor.sourceSet.resources.srcDirs + buildType.sourceSet.resources.srcDirs).findAll { it.exists() }
+        }
+
+        // Add a task to generate resource package
+        def generateResources = project.tasks.add("generate${variant.name}Resources", GenerateResourcePackage)
+        generateResources.dependsOn crunchTask
+        generateResources.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.ap_") }
+        generateResources.sdkDir = sdkDir
+        generateResources.conventionMapping.sourceDirectories =  {
+            ([crunchTask.outputDir] + main.resources.srcDirs + productFlavor.sourceSet.resources.srcDirs + buildType.sourceSet.resources.srcDirs).findAll { it.exists() }
+        }
+        generateResources.androidManifestFile = project.file('src/main/AndroidManifest.xml')
+        generateResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
         // Add an assemble task
         def assembleTask = project.tasks.add(variant.assembleTaskName)
-        assembleTask.dependsOn jarTask
+        assembleTask.dependsOn dexTask, generateResources
         assembleTask.description = "Assembles the ${productFlavor.name} ${buildType.name} application"
         assembleTask.group = "Build"
     }
