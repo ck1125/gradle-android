@@ -153,7 +153,7 @@ class AndroidPlugin implements Plugin<Project> {
         def compileTaskName = "compile${variant.name}"
         def compileTask = project.tasks.add(compileTaskName, Compile)
         compileTask.source main.java, buildType.sourceSet.java, productFlavor.sourceSet.java, generateSourceTask.outputs
-        compileTask.classpath = project.files()
+        compileTask.classpath = main.compileClasspath
         compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/$variant.dirName") }
         // TODO - make this use convention mapping
         compileTask.doFirst {
@@ -164,7 +164,7 @@ class AndroidPlugin implements Plugin<Project> {
         def dexTaskName = "dex${variant.name}"
         def dexTask = project.tasks.add(dexTaskName, Dex)
         dexTask.sdkDir = sdkDir
-        dexTask.conventionMapping.sourceFiles = { project.files(compileTask.outputs) }
+        dexTask.conventionMapping.sourceFiles = { project.files(compileTask.outputs, main.compileClasspath) }
         dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.dex") }
 
         // Add a task to crunch resource files

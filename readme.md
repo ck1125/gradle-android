@@ -27,15 +27,17 @@ plugin will also define the following source directories:
 
 You can configure these locations by configuring the associated source set.
 
-Have a look in the `customized/build.gradle` build file to see the DSL in action.
+Compile time dependencies are declared in the usual way.
+
+Have a look at the `basic/build.gradle` and `customized/build.gradle` build files to see the DSL in action.
 
 ## Contents
 
-The `buildSrc` directory contains the plugin implementation.
+The source tree contains the following:
 
-The `basic` directory contains a simple application that follows the conventions
-
-The `customized` directory contains an application with some custom build types, product flavors and other
+* The `buildSrc` directory contains the plugin implementation.
+* The `basic` directory contains a simple application that follows the conventions
+* The `customized` directory contains an application with some custom build types, product flavors and other
 customizations.
 
 ## Usage
@@ -65,4 +67,10 @@ For each variant (product-flavor, build-type):
 * Packages the resource into `build/libs`
 * Assembles the application package into `build/libs`.
 
-Currently, the plugin signs all applications using the debug key.
+Some other notes:
+* Uses `sourceSets.main.compileClasspath` as the compile classpath for each variant. Could potentially also include
+`sourceSets.$BuildType.compileClasspath` and `sourceSets.$ProductFlavor.compileClasspath` as well.
+* Currently, the plugin signs all applications using the debug key.
+* No support for building test applications.
+* No support for building library projects.
+* No support for running ProGuard.
