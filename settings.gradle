@@ -1,1 +1,7 @@
-include 'basic', 'customized'
+include 'basic'
+include 'customized'
+
+include 'app'
+include 'util'
+project(':app').projectDir = new File(rootDir, 'multiproject/app')
+project(':util').projectDir = new File(rootDir, 'multiproject/util')

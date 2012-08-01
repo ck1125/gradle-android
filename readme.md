@@ -39,6 +39,7 @@ The source tree contains the following:
 * The `basic` directory contains a simple application that follows the conventions
 * The `customized` directory contains an application with some custom build types, product flavors and other
 customizations.
+* The `multiproject` directory contains an application composed from several Gradle projects.
 
 ## Usage
 
