@@ -8,6 +8,8 @@ import org.gradle.api.Project
 import org.gradle.api.plugins.JavaBasePlugin
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.compile.Compile
+import org.gradle.android.internal.AndroidManifest
+import org.gradle.internal.reflect.Instantiator
 
 class AndroidPlugin implements Plugin<Project> {
     private final Set<AndroidAppVariant> variants = []
@@ -18,6 +20,7 @@ class AndroidPlugin implements Plugin<Project> {
     private SourceSet test
     private File sdkDir
     private AndroidExtension extension
+    private AndroidManifest mainManifest
 
     @Override
     void apply(Project project) {
@@ -26,9 +29,15 @@ class AndroidPlugin implements Plugin<Project> {
         project.apply plugin: JavaBasePlugin
 
         def buildTypes = project.container(BuildType)
-        def productFlavors = project.container(ProductFlavor)
+        // TODO - do the decoration by default
+        def productFlavors = project.container(ProductFlavor) { name ->
+            project.services.get(Instantiator).newInstance(ProductFlavor, name)
+        }
 
         extension = project.extensions.create('android', AndroidExtension, buildTypes, productFlavors)
+        extension.conventionMapping.packageName = { getMainManifest().packageName }
+        extension.conventionMapping.versionCode = { getMainManifest().versionCode }
+        extension.conventionMapping.versionName = { getMainManifest().versionName }
 
         findSdk(project)
 
@@ -58,7 +67,7 @@ class AndroidPlugin implements Plugin<Project> {
 
         project.afterEvaluate {
             if (productFlavors.isEmpty()) {
-                productFlavors.add(new ProductFlavor('main'))
+                productFlavors.configure { main }
             }
         }
 
@@ -71,6 +80,14 @@ class AndroidPlugin implements Plugin<Project> {
             throw new RuntimeException("Specified target '$extension.target' does not exist.")
         }
         new File(platformDir, "android.jar")
+    }
+
+    private AndroidManifest getMainManifest() {
+        if (mainManifest == null) {
+            mainManifest = new AndroidManifest()
+            mainManifest.load(project.file("src/main/AndroidManifest.xml"))
+        }
+        return mainManifest
     }
 
     private void findSdk(Project project) {
@@ -123,6 +140,10 @@ class AndroidPlugin implements Plugin<Project> {
 
         def productFlavorDimension = new ProductFlavorDimension(productFlavor, mainSourceSet, testSourceSet)
         productFlavors[productFlavor.name] = productFlavorDimension
+
+        productFlavor.conventionMapping.packageName = { extension.packageName }
+        productFlavor.conventionMapping.versionCode = { extension.versionCode }
+        productFlavor.conventionMapping.versionName = { extension.versionName }
 
         def assembleFlavour = project.tasks.add(productFlavorDimension.assembleTaskName)
         assembleFlavour.dependsOn {

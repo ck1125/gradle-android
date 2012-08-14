@@ -7,6 +7,9 @@ class AndroidExtension {
     final NamedDomainObjectContainer<BuildType> buildTypes
     final NamedDomainObjectContainer<ProductFlavor> productFlavors
     String target = "android-16"
+    String packageName
+    Integer versionCode
+    String versionName
 
     AndroidExtension(NamedDomainObjectContainer<BuildType> buildTypes, NamedDomainObjectContainer<ProductFlavor> productFlavors) {
         this.buildTypes = buildTypes
