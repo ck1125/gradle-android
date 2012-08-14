@@ -23,4 +23,8 @@ class AndroidAppVariant {
     String getDirName() {
         return "$productFlavor.name/$buildType.name"
     }
+
+    String getBaseName() {
+        return "$productFlavor.name-$buildType.name"
+    }
 }

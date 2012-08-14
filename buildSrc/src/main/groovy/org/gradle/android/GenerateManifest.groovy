@@ -6,9 +6,10 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.OutputFile
 import org.gradle.android.internal.AndroidManifest
+import org.gradle.api.tasks.Optional
 
 class GenerateManifest extends DefaultTask {
-    @InputFile
+    @InputFile @Optional
     File sourceFile
 
     @OutputFile
@@ -26,7 +27,9 @@ class GenerateManifest extends DefaultTask {
     @TaskAction
     def generate() {
         AndroidManifest manifest = new AndroidManifest()
-        manifest.load(getSourceFile())
+        if (getSourceFile() != null) {
+            manifest.load(getSourceFile())
+        }
         manifest.packageName = getPackageName()
         manifest.versionCode = getVersionCode()
         manifest.versionName = getVersionName()
