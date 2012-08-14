@@ -1,11 +1,13 @@
 package org.gradle.android
 
-import org.gradle.api.Project
+import org.gradle.android.internal.AndroidAppVariant
+import org.gradle.android.internal.BuildTypeDimension
+import org.gradle.android.internal.ProductFlavorDimension
 import org.gradle.api.Plugin
+import org.gradle.api.Project
 import org.gradle.api.plugins.JavaBasePlugin
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.compile.Compile
-import org.gradle.api.file.FileCollection
 
 class AndroidPlugin implements Plugin<Project> {
     private final Set<AndroidAppVariant> variants = []
@@ -230,67 +232,5 @@ class AndroidPlugin implements Plugin<Project> {
         installApp.dependsOn alignApp
         installApp.conventionMapping.packageFile = { alignApp.outputFile }
         installApp.sdkDir = sdkDir
-    }
-
-    private static class AndroidAppVariant {
-        final String name
-        final BuildType buildType
-        final ProductFlavor productFlavor
-        FileCollection runtimeClasspath
-
-        AndroidAppVariant(BuildType buildType, ProductFlavor productFlavor) {
-            this.name = "${productFlavor.name.capitalize()}${buildType.name.capitalize()}"
-            this.buildType = buildType
-            this.productFlavor = productFlavor
-        }
-
-        String getAssembleTaskName() {
-            return "assemble$name"
-        }
-
-        String getDirName() {
-            return "$productFlavor.name/$buildType.name"
-        }
-    }
-
-    private static class BuildTypeDimension {
-        final BuildType buildType
-        final Set<AndroidAppVariant> variants = []
-        final SourceSet mainSource
-
-        BuildTypeDimension(BuildType buildType, SourceSet mainSource) {
-            this.buildType = buildType
-            this.mainSource = mainSource
-        }
-
-        String getName() {
-            return buildType.name
-        }
-
-        String getAssembleTaskName() {
-            return "assemble${buildType.name.capitalize()}"
-        }
-    }
-
-    private static class ProductFlavorDimension {
-        final ProductFlavor productFlavor
-        final Set<AndroidAppVariant> variants = []
-        final SourceSet mainSource
-        final SourceSet testSource
-        AndroidAppVariant debugVariant
-
-        ProductFlavorDimension(ProductFlavor productFlavor, SourceSet mainSource, SourceSet testSource) {
-            this.productFlavor = productFlavor
-            this.mainSource = mainSource
-            this.testSource = testSource
-        }
-
-        String getName() {
-            return productFlavor.name
-        }
-
-        String getAssembleTaskName() {
-            return "assemble${productFlavor.name.capitalize()}"
-        }
     }
 }
