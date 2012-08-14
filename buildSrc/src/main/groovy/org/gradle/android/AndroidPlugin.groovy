@@ -5,6 +5,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.plugins.JavaBasePlugin
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.compile.Compile
+import org.gradle.api.file.FileCollection
 
 class AndroidPlugin implements Plugin<Project> {
     private final Set<AndroidAppVariant> variants = []
@@ -12,6 +13,7 @@ class AndroidPlugin implements Plugin<Project> {
     private final Map<String, ProductFlavorDimension> productFlavors = [:]
     private Project project
     private SourceSet main
+    private SourceSet test
     private File sdkDir
     private AndroidExtension extension
 
@@ -33,6 +35,7 @@ class AndroidPlugin implements Plugin<Project> {
         }
 
         main = project.sourceSets.add('main')
+        test = project.sourceSets.add('test')
 
         buildTypes.whenObjectAdded { BuildType buildType ->
             addBuildType(buildType)
@@ -41,15 +44,15 @@ class AndroidPlugin implements Plugin<Project> {
             throw new UnsupportedOperationException("Removing build types is not implemented yet.")
         }
 
+        buildTypes.add(new BuildType('debug'))
+        buildTypes.add(new BuildType('release'))
+
         productFlavors.whenObjectAdded { ProductFlavor flavor ->
             addProductFlavor(flavor)
         }
         productFlavors.whenObjectRemoved {
             throw new UnsupportedOperationException("Removing product flavors is not implemented yet.")
         }
-
-        buildTypes.add(new BuildType('debug'))
-        buildTypes.add(new BuildType('release'))
 
         project.afterEvaluate {
             if (productFlavors.isEmpty()) {
@@ -106,14 +109,17 @@ class AndroidPlugin implements Plugin<Project> {
     }
 
     private void addProductFlavor(ProductFlavor productFlavor) {
-        def sourceSet
+        def mainSourceSet
+        def testSourceSet
         if (productFlavor.name == 'main') {
-            sourceSet = main
+            mainSourceSet = main
+            testSourceSet = test
         } else {
-            sourceSet = project.sourceSets.add(productFlavor.name)
+            mainSourceSet = project.sourceSets.add(productFlavor.name)
+            testSourceSet = project.sourceSets.add("test${productFlavor.name.capitalize()}")
         }
 
-        def productFlavorDimension = new ProductFlavorDimension(productFlavor, sourceSet)
+        def productFlavorDimension = new ProductFlavorDimension(productFlavor, mainSourceSet, testSourceSet)
         productFlavors[productFlavor.name] = productFlavorDimension
 
         def assembleFlavour = project.tasks.add(productFlavorDimension.assembleTaskName)
@@ -123,13 +129,19 @@ class AndroidPlugin implements Plugin<Project> {
         assembleFlavour.description = "Assembles all ${productFlavor.name} applications"
         assembleFlavour.group = "Build"
 
-        def testCompile = project.tasks.add("compile${productFlavor.name.capitalize()}Test")
-
-        def testJar = project.tasks.add("test${productFlavor.name.capitalize()}Jar")
-        testJar.dependsOn testCompile
-
         buildTypes.values().each { buildType ->
             addVariant(buildType, productFlavorDimension)
+        }
+
+        assert productFlavorDimension.debugVariant != null
+
+        def testCompile = project.tasks.add("compile${productFlavor.name.capitalize()}Test", Compile)
+        testCompile.source test.java, productFlavorDimension.testSource.java
+        testCompile.classpath = test.compileClasspath + productFlavorDimension.debugVariant.runtimeClasspath
+        testCompile.conventionMapping.destinationDir = { project.file("$project.buildDir/test-classes/$productFlavor.name") }
+        // TODO - make this use convention mapping
+        testCompile.doFirst {
+            options.bootClasspath = getRuntimeJar()
         }
     }
 
@@ -138,13 +150,16 @@ class AndroidPlugin implements Plugin<Project> {
         variants << variant
         buildType.variants << variant
         productFlavor.variants << variant
+        if (buildType.name == 'debug') {
+            productFlavor.debugVariant = variant
+        }
 
         // Add a task to generate resource source files
         def generateSourceTask = project.tasks.add("generate${variant.name}Source", GenerateResourceSource)
         generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source/$variant.dirName") }
         generateSourceTask.sdkDir = sdkDir
         generateSourceTask.conventionMapping.sourceDirectories =  {
-            (main.resources.srcDirs + productFlavor.sourceSet.resources.srcDirs + buildType.sourceSet.resources.srcDirs).findAll { it.exists() }
+            (main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
         }
         generateSourceTask.androidManifestFile = project.file('src/main/AndroidManifest.xml')
         generateSourceTask.conventionMapping.includeFiles = { [getRuntimeJar()] }
@@ -152,7 +167,7 @@ class AndroidPlugin implements Plugin<Project> {
         // Add a compile task
         def compileTaskName = "compile${variant.name}"
         def compileTask = project.tasks.add(compileTaskName, Compile)
-        compileTask.source main.java, buildType.sourceSet.java, productFlavor.sourceSet.java, generateSourceTask.outputs
+        compileTask.source main.java, buildType.mainSource.java, productFlavor.mainSource.java, generateSourceTask.outputs
         compileTask.classpath = main.compileClasspath
         compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/$variant.dirName") }
         // TODO - make this use convention mapping
@@ -160,11 +175,14 @@ class AndroidPlugin implements Plugin<Project> {
             options.bootClasspath = getRuntimeJar()
         }
 
+        // Wire up the runtime classpath
+        variant.runtimeClasspath = project.files(compileTask.outputs, main.compileClasspath)
+
         // Add a dex task
         def dexTaskName = "dex${variant.name}"
         def dexTask = project.tasks.add(dexTaskName, Dex)
         dexTask.sdkDir = sdkDir
-        dexTask.conventionMapping.sourceFiles = { project.files(compileTask.outputs, main.compileClasspath) }
+        dexTask.conventionMapping.sourceFiles = { variant.runtimeClasspath }
         dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.dex") }
 
         // Add a task to crunch resource files
@@ -172,7 +190,7 @@ class AndroidPlugin implements Plugin<Project> {
         crunchTask.conventionMapping.outputDir = { project.file("$project.buildDir/resources/$variant.dirName") }
         crunchTask.sdkDir = sdkDir
         crunchTask.conventionMapping.sourceDirectories =  {
-            (main.resources.srcDirs + productFlavor.sourceSet.resources.srcDirs + buildType.sourceSet.resources.srcDirs).findAll { it.exists() }
+            (main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
         }
 
         // Add a task to generate resource package
@@ -181,7 +199,7 @@ class AndroidPlugin implements Plugin<Project> {
         generateResources.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.ap_") }
         generateResources.sdkDir = sdkDir
         generateResources.conventionMapping.sourceDirectories =  {
-            ([crunchTask.outputDir] + main.resources.srcDirs + productFlavor.sourceSet.resources.srcDirs + buildType.sourceSet.resources.srcDirs).findAll { it.exists() }
+            ([crunchTask.outputDir] + main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
         }
         generateResources.androidManifestFile = project.file('src/main/AndroidManifest.xml')
         generateResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
@@ -218,6 +236,7 @@ class AndroidPlugin implements Plugin<Project> {
         final String name
         final BuildType buildType
         final ProductFlavor productFlavor
+        FileCollection runtimeClasspath
 
         AndroidAppVariant(BuildType buildType, ProductFlavor productFlavor) {
             this.name = "${productFlavor.name.capitalize()}${buildType.name.capitalize()}"
@@ -237,11 +256,11 @@ class AndroidPlugin implements Plugin<Project> {
     private static class BuildTypeDimension {
         final BuildType buildType
         final Set<AndroidAppVariant> variants = []
-        final SourceSet sourceSet
+        final SourceSet mainSource
 
-        BuildTypeDimension(BuildType buildType, SourceSet sourceSet) {
+        BuildTypeDimension(BuildType buildType, SourceSet mainSource) {
             this.buildType = buildType
-            this.sourceSet = sourceSet
+            this.mainSource = mainSource
         }
 
         String getName() {
@@ -256,11 +275,14 @@ class AndroidPlugin implements Plugin<Project> {
     private static class ProductFlavorDimension {
         final ProductFlavor productFlavor
         final Set<AndroidAppVariant> variants = []
-        final SourceSet sourceSet
+        final SourceSet mainSource
+        final SourceSet testSource
+        AndroidAppVariant debugVariant
 
-        ProductFlavorDimension(ProductFlavor productFlavor, SourceSet sourceSet) {
+        ProductFlavorDimension(ProductFlavor productFlavor, SourceSet mainSource, SourceSet testSource) {
             this.productFlavor = productFlavor
-            this.sourceSet = sourceSet
+            this.mainSource = mainSource
+            this.testSource = testSource
         }
 
         String getName() {
