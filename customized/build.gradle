@@ -8,7 +8,9 @@ android {
 
     // Define the flavors of our product
     productFlavors {
-        free
+        free {
+            packageName = 'org.gradle.sample.free'
+        }
         paid
     }
 

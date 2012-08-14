@@ -177,14 +177,23 @@ class AndroidPlugin implements Plugin<Project> {
             productFlavor.debugVariant = variant
         }
 
+        // Add a task to generate the manifest
+        def generateManifestTask = project.tasks.add("generate${variant.name}Manifest", GenerateManifest)
+        generateManifestTask.sourceFile = project.file('src/main/AndroidManifest.xml')
+        generateManifestTask.conventionMapping.outputFile = { project.file("$project.buildDir/manifests/$variant.dirName/AndroidManifest.xml") }
+        generateManifestTask.conventionMapping.packageName = { getMainManifest().packageName }
+        generateManifestTask.conventionMapping.versionCode = { productFlavor.productFlavor.versionCode }
+        generateManifestTask.conventionMapping.versionName = { productFlavor.productFlavor.versionName }
+
         // Add a task to generate resource source files
         def generateSourceTask = project.tasks.add("generate${variant.name}Source", GenerateResourceSource)
+        generateSourceTask.dependsOn generateManifestTask
         generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source/$variant.dirName") }
         generateSourceTask.sdkDir = sdkDir
         generateSourceTask.conventionMapping.sourceDirectories =  {
             (main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
         }
-        generateSourceTask.androidManifestFile = project.file('src/main/AndroidManifest.xml')
+        generateSourceTask.conventionMapping.androidManifestFile = { generateManifestTask.outputFile }
         generateSourceTask.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
         // Add a compile task
@@ -217,22 +226,23 @@ class AndroidPlugin implements Plugin<Project> {
         }
 
         // Add a task to generate resource package
-        def generateResources = project.tasks.add("package${variant.name}Resources", GenerateResourcePackage)
-        generateResources.dependsOn crunchTask
-        generateResources.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.ap_") }
-        generateResources.sdkDir = sdkDir
-        generateResources.conventionMapping.sourceDirectories =  {
+        def packageResources = project.tasks.add("package${variant.name}Resources", GenerateResourcePackage)
+        packageResources.dependsOn generateManifestTask, crunchTask
+        packageResources.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}.ap_") }
+        packageResources.sdkDir = sdkDir
+        packageResources.conventionMapping.sourceDirectories =  {
             ([crunchTask.outputDir] + main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
         }
-        generateResources.androidManifestFile = project.file('src/main/AndroidManifest.xml')
-        generateResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
+        packageResources.conventionMapping.androidManifestFile = { generateManifestTask.outputFile }
+        packageResources.conventionMapping.packageName = { productFlavor.productFlavor.packageName }
+        packageResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
         // Add a task to generate application package
         def packageApp = project.tasks.add("package${variant.name}", PackageApplication)
-        packageApp.dependsOn generateResources, dexTask
+        packageApp.dependsOn packageResources, dexTask
         packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${productFlavor.name}-${buildType.name}-unaligned.apk") }
         packageApp.sdkDir = sdkDir
-        packageApp.conventionMapping.resourceFile = { generateResources.outputFile }
+        packageApp.conventionMapping.resourceFile = { packageResources.outputFile }
         packageApp.conventionMapping.dexFile = { dexTask.outputFile }
 
         // Add a task to zip align application package

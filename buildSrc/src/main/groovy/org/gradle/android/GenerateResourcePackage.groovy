@@ -19,6 +19,9 @@ class GenerateResourcePackage extends DefaultTask {
     @InputFile
     File androidManifestFile
 
+    @Input
+    String packageName
+
     @TaskAction
     void generate() {
         project.exec {
@@ -28,6 +31,7 @@ class GenerateResourcePackage extends DefaultTask {
             args '--debug-mode'
             args '--no-crunch'
             args '--generate-dependencies'
+            args '--rename-manifest-package', getPackageName()
             args '-F', getOutputFile()
             args '-M', getAndroidManifestFile()
             getSourceDirectories().each {
