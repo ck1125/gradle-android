@@ -9,5 +9,10 @@
     android:layout_height="wrap_content"
     android:text="@string/greeting"
     />
+<TextView
+    android:id="@+id/people"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    />
 </LinearLayout>
 
