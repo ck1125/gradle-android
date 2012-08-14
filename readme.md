@@ -24,12 +24,32 @@ plugin will also define the following source directories:
 * `src/$BuildType/res` - Java source to be included in all application variants with the given build type.
 * `src/$ProductFlavor/java` - Resources to be included in all application variants with the given product flavor.
 * `src/$ProductFlavor/res` - Resources to be included in all application variants with the given product flavor.
+* `src/test/java` - Test source to be included in all test applications.
+* `src/test$ProductFlavor/java` - Test source to be include for the test application for the given product flavor.
 
 You can configure these locations by configuring the associated source set.
 
 Compile time dependencies are declared in the usual way.
 
 Have a look at the `basic/build.gradle` and `customized/build.gradle` build files to see the DSL in action.
+
+### Configuration options
+
+* `android.packageName` - defaults to that specified in `src/main/AndroidManifest.xml`
+* `android.versionCode` - defaults to that specified in `src/main/AndroidManifest.xml`
+* `android.versionName` - defaults to that specified in `src/main/AndroidManifest.xml`
+* `android.target` - defaults to `android-16`.
+* `android.productFlavors.$flavor.packageName` - defaults to `${android.packageName}`
+* `android.productFlavors.$flavor.versionCode` - defaults to `${android.versionCode}`
+* `android.productFlavors.$flavor.versionName` - defaults to `${android.versionName}`
+* `sourceSets.main.java.srcDirs` - defaults to `src/main/java`
+* `sourceSets.main.resources.srcDirs` - defaults to `src/main/res`
+* `sourceSets.$flavor.java.srcDirs` - defaults to `src/$flavor/java`
+* `sourceSets.$flavor.resources.srcDirs` - defaults to `src/$flavor/res`
+* `sourceSets.$buildType.java.srcDirs` - defaults to `src/$buildType/java`
+* `sourceSets.$buildType.resources.srcDirs` - defaults to `src/$buildType/res`
+* `sourceSets.test.java.srcDirs` - defaults to `src/test/java`
+* `sourceSets.test$Flavor.java.srcDirs` - defaults to `src/test$Flavor/java`
 
 ## Contents
 
