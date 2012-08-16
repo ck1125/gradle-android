@@ -4,11 +4,12 @@ import org.gradle.android.BuildType
 import org.gradle.android.ProductFlavor
 import org.gradle.api.file.FileCollection
 
-class AndroidAppVariant {
+class AndroidAppVariant implements Packagable {
     final String name
     final BuildType buildType
     final ProductFlavor productFlavor
     FileCollection runtimeClasspath
+    FileCollection resourcePackage
 
     AndroidAppVariant(BuildType buildType, ProductFlavor productFlavor) {
         this.name = "${productFlavor.name.capitalize()}${buildType.name.capitalize()}"
@@ -16,8 +17,8 @@ class AndroidAppVariant {
         this.productFlavor = productFlavor
     }
 
-    String getAssembleTaskName() {
-        return "assemble$name"
+    String getDescription() {
+        return "$productFlavor.name $buildType.name"
     }
 
     String getDirName() {

@@ -10,6 +10,8 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.compile.Compile
 import org.gradle.android.internal.AndroidManifest
 import org.gradle.internal.reflect.Instantiator
+import org.gradle.android.internal.Packagable
+import org.gradle.android.internal.TestApp
 
 class AndroidPlugin implements Plugin<Project> {
     private final Set<AndroidAppVariant> variants = []
@@ -55,8 +57,8 @@ class AndroidPlugin implements Plugin<Project> {
             throw new UnsupportedOperationException("Removing build types is not implemented yet.")
         }
 
-        buildTypes.add(new BuildType('debug'))
-        buildTypes.add(new BuildType('release'))
+        buildTypes.create('debug')
+        buildTypes.create('release')
 
         productFlavors.whenObjectAdded { ProductFlavor flavor ->
             addProductFlavor(flavor)
@@ -172,12 +174,6 @@ class AndroidPlugin implements Plugin<Project> {
         testCompile.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/test/$productFlavor.name") }
         testCompile.options.bootClasspath = getRuntimeJar()
 
-        // Add a dex task
-        def dexTask = project.tasks.add("dex${productFlavor.name.capitalize()}Test", Dex)
-        dexTask.sdkDir = sdkDir
-        dexTask.conventionMapping.sourceFiles = { testCompile.outputs.files + testCompile.classpath }
-        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/test/${project.archivesBaseName}-${productFlavor.name}.dex") }
-
         // Add a task to generate resource package
         def processResources = project.tasks.add("process${productFlavor.name.capitalize()}TestResources", ProcessResources)
         processResources.dependsOn generateManifestTask
@@ -188,25 +184,12 @@ class AndroidPlugin implements Plugin<Project> {
         processResources.conventionMapping.packageName = { generateManifestTask.packageName }
         processResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
-        // Add a task to generate application package
-        def packageApp = project.tasks.add("package${productFlavor.name.capitalize()}Test", PackageApplication)
-        packageApp.dependsOn processResources, dexTask
-        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/test/${project.archivesBaseName}-${productFlavor.name}-unaligned.apk") }
-        packageApp.sdkDir = sdkDir
-        packageApp.conventionMapping.resourceFile = { processResources.packageFile }
-        packageApp.conventionMapping.dexFile = { dexTask.outputFile }
+        def testApp = new TestApp(productFlavor)
+        testApp.runtimeClasspath = testCompile.outputs.files + testCompile.classpath
+        testApp.resourcePackage = project.files({processResources.packageFile}) { builtBy processResources }
+        addPackageTasks(testApp)
 
-        // Add a task to install the application package
-        def installApp = project.tasks.add("install${productFlavor.name.capitalize()}Test", InstallApplication)
-        installApp.dependsOn packageApp
-        installApp.conventionMapping.packageFile = { packageApp.outputFile }
-        installApp.sdkDir = sdkDir
-
-        // Add an assemble task
-        def assembleTask = project.tasks.add("assemble${productFlavor.name.capitalize()}Test")
-        assembleTask.dependsOn packageApp
-
-        project.tasks.check.dependsOn assembleTask
+        project.tasks.check.dependsOn "assemble${testApp.name}"
     }
 
     private void addVariant(BuildTypeDimension buildType, ProductFlavorDimension productFlavor) {
@@ -238,7 +221,7 @@ class AndroidPlugin implements Plugin<Project> {
         def processResources = project.tasks.add("process${variant.name}Resources", ProcessResources)
         processResources.dependsOn generateManifestTask, crunchTask
         processResources.conventionMapping.sourceOutputDir = { project.file("$project.buildDir/source/main/$variant.dirName") }
-        processResources.conventionMapping.packageFile = { project.file("$project.buildDir/libs/main/${project.archivesBaseName}-${variant.baseName}.ap_") }
+        processResources.conventionMapping.packageFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${variant.baseName}.ap_") }
         processResources.sdkDir = sdkDir
         processResources.conventionMapping.sourceDirectories =  {
             ([crunchTask.outputDir] + main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
@@ -256,39 +239,44 @@ class AndroidPlugin implements Plugin<Project> {
         compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/main/$variant.dirName") }
         compileTask.options.bootClasspath = getRuntimeJar()
 
-        // Wire up the runtime classpath
+        // Wire up the outputs
         variant.runtimeClasspath = project.files(compileTask.outputs, main.compileClasspath)
+        variant.resourcePackage = project.files({processResources.packageFile}) { builtBy processResources }
 
+        addPackageTasks(variant)
+    }
+
+    private void addPackageTasks(Packagable packagable) {
         // Add a dex task
-        def dexTaskName = "dex${variant.name}"
+        def dexTaskName = "dex${packagable.name}"
         def dexTask = project.tasks.add(dexTaskName, Dex)
         dexTask.sdkDir = sdkDir
-        dexTask.conventionMapping.sourceFiles = { variant.runtimeClasspath }
-        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/main/${project.archivesBaseName}-${variant.baseName}.dex") }
+        dexTask.conventionMapping.sourceFiles = { packagable.runtimeClasspath }
+        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/${project.archivesBaseName}-${packagable.baseName}.dex") }
 
         // Add a task to generate application package
-        def packageApp = project.tasks.add("package${variant.name}", PackageApplication)
-        packageApp.dependsOn processResources, dexTask
-        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/main/${project.archivesBaseName}-${variant.baseName}-unaligned.apk") }
+        def packageApp = project.tasks.add("package${packagable.name}", PackageApplication)
+        packageApp.dependsOn packagable.resourcePackage, dexTask
+        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/${project.archivesBaseName}-${packagable.baseName}-unaligned.apk") }
         packageApp.sdkDir = sdkDir
-        packageApp.conventionMapping.resourceFile = { processResources.packageFile }
+        packageApp.conventionMapping.resourceFile = { packagable.resourcePackage.singleFile }
         packageApp.conventionMapping.dexFile = { dexTask.outputFile }
 
         // Add a task to zip align application package
-        def alignApp = project.tasks.add("zipalign${variant.name}", ZipAlign)
+        def alignApp = project.tasks.add("zipalign${packagable.name}", ZipAlign)
         alignApp.dependsOn packageApp
         alignApp.conventionMapping.inputFile = { packageApp.outputFile }
-        alignApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/main/${project.archivesBaseName}-${variant.baseName}.apk") }
+        alignApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/${project.archivesBaseName}-${packagable.baseName}.apk") }
         alignApp.sdkDir = sdkDir
 
         // Add an assemble task
-        def assembleTask = project.tasks.add(variant.assembleTaskName)
+        def assembleTask = project.tasks.add("assemble${packagable.name}")
         assembleTask.dependsOn alignApp
-        assembleTask.description = "Assembles the ${productFlavor.name} ${buildType.name} application"
+        assembleTask.description = "Assembles the ${packagable.description} application"
         assembleTask.group = "Build"
 
         // Add a task to install the application package
-        def installApp = project.tasks.add("install${variant.name}", InstallApplication)
+        def installApp = project.tasks.add("install${packagable.name}", InstallApplication)
         installApp.dependsOn alignApp
         installApp.conventionMapping.packageFile = { alignApp.outputFile }
         installApp.sdkDir = sdkDir
