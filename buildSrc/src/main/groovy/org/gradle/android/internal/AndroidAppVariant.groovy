@@ -28,4 +28,9 @@ class AndroidAppVariant implements Packagable {
     String getBaseName() {
         return "$productFlavor.name-$buildType.name"
     }
+
+    @Override
+    boolean getZipAlign() {
+        return buildType.zipAlign
+    }
 }

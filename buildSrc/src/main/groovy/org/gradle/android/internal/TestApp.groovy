@@ -26,4 +26,9 @@ class TestApp implements Packagable {
     String getBaseName() {
         return "$productFlavor.name-test"
     }
+
+    @Override
+    boolean getZipAlign() {
+        return false
+    }
 }

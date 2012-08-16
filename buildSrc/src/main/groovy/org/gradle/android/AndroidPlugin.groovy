@@ -57,7 +57,9 @@ class AndroidPlugin implements Plugin<Project> {
             throw new UnsupportedOperationException("Removing build types is not implemented yet.")
         }
 
-        buildTypes.create('debug')
+        buildTypes.create('debug') {
+            zipAlign = false
+        }
         buildTypes.create('release')
 
         productFlavors.whenObjectAdded { ProductFlavor flavor ->
@@ -73,7 +75,7 @@ class AndroidPlugin implements Plugin<Project> {
             }
         }
 
-        project.tasks.assemble.dependsOn { variants.collect { it.assembleTaskName} }
+        project.tasks.assemble.dependsOn { variants.collect { "assemble${it.name}" } }
     }
 
     private File getRuntimeJar() {
@@ -119,7 +121,7 @@ class AndroidPlugin implements Plugin<Project> {
 
         def assembleBuildType = project.tasks.add(buildTypeDimension.assembleTaskName)
         assembleBuildType.dependsOn {
-            buildTypeDimension.variants.collect { it.assembleTaskName }
+            buildTypeDimension.variants.collect { "assemble$it.name" }
         }
         assembleBuildType.description = "Assembles all ${buildType.name} applications"
         assembleBuildType.group = "Build"
@@ -149,7 +151,7 @@ class AndroidPlugin implements Plugin<Project> {
 
         def assembleFlavour = project.tasks.add(productFlavorDimension.assembleTaskName)
         assembleFlavour.dependsOn {
-            productFlavorDimension.variants.collect { it.assembleTaskName }
+            productFlavorDimension.variants.collect { "assemble${it.name}" }
         }
         assembleFlavour.description = "Assembles all ${productFlavor.name} applications"
         assembleFlavour.group = "Build"
@@ -262,23 +264,29 @@ class AndroidPlugin implements Plugin<Project> {
         packageApp.conventionMapping.resourceFile = { packagable.resourcePackage.singleFile }
         packageApp.conventionMapping.dexFile = { dexTask.outputFile }
 
-        // Add a task to zip align application package
-        def alignApp = project.tasks.add("zipalign${packagable.name}", ZipAlign)
-        alignApp.dependsOn packageApp
-        alignApp.conventionMapping.inputFile = { packageApp.outputFile }
-        alignApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/${project.archivesBaseName}-${packagable.baseName}.apk") }
-        alignApp.sdkDir = sdkDir
+        def appTask = packageApp
+
+        if (packagable.zipAlign) {
+            // Add a task to zip align application package
+            def alignApp = project.tasks.add("zipalign${packagable.name}", ZipAlign)
+            alignApp.dependsOn packageApp
+            alignApp.conventionMapping.inputFile = { packageApp.outputFile }
+            alignApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/${project.archivesBaseName}-${packagable.baseName}.apk") }
+            alignApp.sdkDir = sdkDir
+
+            appTask = alignApp
+        }
 
         // Add an assemble task
         def assembleTask = project.tasks.add("assemble${packagable.name}")
-        assembleTask.dependsOn alignApp
+        assembleTask.dependsOn appTask
         assembleTask.description = "Assembles the ${packagable.description} application"
         assembleTask.group = "Build"
 
         // Add a task to install the application package
         def installApp = project.tasks.add("install${packagable.name}", InstallApplication)
-        installApp.dependsOn alignApp
-        installApp.conventionMapping.packageFile = { alignApp.outputFile }
+        installApp.dependsOn appTask
+        installApp.conventionMapping.packageFile = { appTask.outputFile }
         installApp.sdkDir = sdkDir
     }
 }

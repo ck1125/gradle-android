@@ -14,6 +14,8 @@ public interface Packagable {
 
     String getBaseName()
 
+    boolean getZipAlign()
+
     FileCollection getRuntimeClasspath()
 
     FileCollection getResourcePackage()

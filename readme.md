@@ -42,6 +42,7 @@ Have a look at the `basic/build.gradle` and `customized/build.gradle` build file
 * `android.productFlavors.$flavor.packageName` - defaults to `${android.packageName}`
 * `android.productFlavors.$flavor.versionCode` - defaults to `${android.versionCode}`
 * `android.productFlavors.$flavor.versionName` - defaults to `${android.versionName}`
+* `android.buildTypes.$type.zipAlign` - defaults to `true` for `release` and `false` for `debug`
 * `sourceSets.main.java.srcDirs` - defaults to `src/main/java`
 * `sourceSets.main.resources.srcDirs` - defaults to `src/main/res`
 * `sourceSets.$flavor.java.srcDirs` - defaults to `src/$flavor/java`
