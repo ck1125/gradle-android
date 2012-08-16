@@ -7,8 +7,9 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.Optional
 
-class GenerateResourceSource extends DefaultTask {
+class ProcessResources extends DefaultTask {
     @Input
     File sdkDir
 
@@ -24,7 +25,7 @@ class GenerateResourceSource extends DefaultTask {
     @Input
     String packageName
 
-    @OutputDirectory
+    @OutputDirectory @Optional
     File sourceOutputDir
 
     @OutputFile
@@ -39,7 +40,9 @@ class GenerateResourceSource extends DefaultTask {
             args '-m'
             args '--generate-dependencies'
             args '--rename-manifest-package', getPackageName()
-            args '-J', getSourceOutputDir()
+            if (getSourceOutputDir() != null) {
+                args '-J', getSourceOutputDir()
+            }
             args '-F', getPackageFile()
             args '-M', getAndroidManifestFile()
             getSourceDirectories().each {

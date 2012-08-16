@@ -182,21 +182,21 @@ class AndroidPlugin implements Plugin<Project> {
         dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/test/${project.archivesBaseName}-${productFlavor.name}.dex") }
 
         // Add a task to generate resource package
-        def packageResources = project.tasks.add("package${productFlavor.name.capitalize()}TestResources", GenerateResourcePackage)
-        packageResources.dependsOn generateManifestTask
-        packageResources.conventionMapping.outputFile = { project.file("$project.buildDir/libs/test/${project.archivesBaseName}-${productFlavor.name}.ap_") }
-        packageResources.sdkDir = sdkDir
-        packageResources.conventionMapping.sourceDirectories =  { [] }
-        packageResources.conventionMapping.androidManifestFile = { generateManifestTask.outputFile }
-        packageResources.conventionMapping.packageName = { generateManifestTask.packageName }
-        packageResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
+        def processResources = project.tasks.add("process${productFlavor.name.capitalize()}TestResources", ProcessResources)
+        processResources.dependsOn generateManifestTask
+        processResources.conventionMapping.packageFile = { project.file("$project.buildDir/libs/test/${project.archivesBaseName}-${productFlavor.name}.ap_") }
+        processResources.sdkDir = sdkDir
+        processResources.conventionMapping.sourceDirectories =  { [] }
+        processResources.conventionMapping.androidManifestFile = { generateManifestTask.outputFile }
+        processResources.conventionMapping.packageName = { generateManifestTask.packageName }
+        processResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
         // Add a task to generate application package
         def packageApp = project.tasks.add("package${productFlavor.name.capitalize()}Test", PackageApplication)
-        packageApp.dependsOn packageResources, dexTask
+        packageApp.dependsOn processResources, dexTask
         packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/test/${project.archivesBaseName}-${productFlavor.name}-unaligned.apk") }
         packageApp.sdkDir = sdkDir
-        packageApp.conventionMapping.resourceFile = { packageResources.outputFile }
+        packageApp.conventionMapping.resourceFile = { processResources.packageFile }
         packageApp.conventionMapping.dexFile = { dexTask.outputFile }
 
         // Add a task to install the application package
@@ -238,23 +238,23 @@ class AndroidPlugin implements Plugin<Project> {
         }
 
         // Add a task to generate resource source files
-        def generateSourceTask = project.tasks.add("process${variant.name}Resources", GenerateResourceSource)
-        generateSourceTask.dependsOn generateManifestTask, crunchTask
-        generateSourceTask.conventionMapping.sourceOutputDir = { project.file("$project.buildDir/source/main/$variant.dirName") }
-        generateSourceTask.conventionMapping.packageFile = { project.file("$project.buildDir/libs/main/${project.archivesBaseName}-${variant.baseName}.ap_") }
-        generateSourceTask.sdkDir = sdkDir
-        generateSourceTask.conventionMapping.sourceDirectories =  {
+        def processResources = project.tasks.add("process${variant.name}Resources", ProcessResources)
+        processResources.dependsOn generateManifestTask, crunchTask
+        processResources.conventionMapping.sourceOutputDir = { project.file("$project.buildDir/source/main/$variant.dirName") }
+        processResources.conventionMapping.packageFile = { project.file("$project.buildDir/libs/main/${project.archivesBaseName}-${variant.baseName}.ap_") }
+        processResources.sdkDir = sdkDir
+        processResources.conventionMapping.sourceDirectories =  {
             ([crunchTask.outputDir] + main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
         }
-        generateSourceTask.conventionMapping.androidManifestFile = { generateManifestTask.outputFile }
-        generateSourceTask.conventionMapping.includeFiles = { [getRuntimeJar()] }
-        generateSourceTask.conventionMapping.packageName = { productFlavor.productFlavor.packageName }
+        processResources.conventionMapping.androidManifestFile = { generateManifestTask.outputFile }
+        processResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
+        processResources.conventionMapping.packageName = { productFlavor.productFlavor.packageName }
 
         // Add a compile task
         def compileTaskName = "compile${variant.name}"
         def compileTask = project.tasks.add(compileTaskName, Compile)
-        compileTask.dependsOn generateSourceTask
-        compileTask.source main.java, buildType.mainSource.java, productFlavor.mainSource.java, { generateSourceTask.sourceOutputDir }
+        compileTask.dependsOn processResources
+        compileTask.source main.java, buildType.mainSource.java, productFlavor.mainSource.java, { processResources.sourceOutputDir }
         compileTask.classpath = main.compileClasspath
         compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/main/$variant.dirName") }
         // TODO - make this use convention mapping
@@ -274,10 +274,10 @@ class AndroidPlugin implements Plugin<Project> {
 
         // Add a task to generate application package
         def packageApp = project.tasks.add("package${variant.name}", PackageApplication)
-        packageApp.dependsOn generateSourceTask, dexTask
+        packageApp.dependsOn processResources, dexTask
         packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/main/${project.archivesBaseName}-${variant.baseName}-unaligned.apk") }
         packageApp.sdkDir = sdkDir
-        packageApp.conventionMapping.resourceFile = { generateSourceTask.packageFile }
+        packageApp.conventionMapping.resourceFile = { processResources.packageFile }
         packageApp.conventionMapping.dexFile = { dexTask.outputFile }
 
         // Add a task to zip align application package
