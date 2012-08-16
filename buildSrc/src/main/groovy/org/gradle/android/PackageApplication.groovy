@@ -21,7 +21,7 @@ class PackageApplication extends DefaultTask {
         def antJar = new File(getSdkDir(), "tools/lib/anttasks.jar")
         ant.taskdef(resource: "anttasks.properties", classpath: antJar)
         ant.apkbuilder(apkFilepath: getOutputFile(),
-                resourcefile: getResourceFile().getName(),
+                resourcefile: project.fileResolver.withBaseDir(getOutputFile().parentFile).resolveAsRelativePath(getResourceFile()),
                 outfolder: getOutputFile().getParentFile(),
                 debugsigning: true) {
             dex(path: getDexFile())

@@ -160,7 +160,7 @@ class AndroidPlugin implements Plugin<Project> {
 
         // Add a task to generate the test app manifest
         def generateManifestTask = project.tasks.add("generate${productFlavor.name.capitalize()}TestManifest", GenerateManifest)
-        generateManifestTask.conventionMapping.outputFile = { project.file("$project.buildDir/test-manifests/$productFlavor.name/AndroidManifest.xml") }
+        generateManifestTask.conventionMapping.outputFile = { project.file("$project.buildDir/manifests/test/$productFlavor.name/AndroidManifest.xml") }
         generateManifestTask.conventionMapping.packageName = { productFlavor.packageName + '.test' }
         generateManifestTask.conventionMapping.versionCode = { productFlavor.versionCode }
         generateManifestTask.conventionMapping.versionName = { productFlavor.versionName }
@@ -169,7 +169,7 @@ class AndroidPlugin implements Plugin<Project> {
         def testCompile = project.tasks.add("compile${productFlavor.name.capitalize()}Test", Compile)
         testCompile.source test.java, productFlavorDimension.testSource.java
         testCompile.classpath = test.compileClasspath + productFlavorDimension.debugVariant.runtimeClasspath
-        testCompile.conventionMapping.destinationDir = { project.file("$project.buildDir/test-classes/$productFlavor.name") }
+        testCompile.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/test/$productFlavor.name") }
         // TODO - make this use convention mapping
         testCompile.doFirst {
             options.bootClasspath = getRuntimeJar()
@@ -179,12 +179,12 @@ class AndroidPlugin implements Plugin<Project> {
         def dexTask = project.tasks.add("dex${productFlavor.name.capitalize()}Test", Dex)
         dexTask.sdkDir = sdkDir
         dexTask.conventionMapping.sourceFiles = { testCompile.outputs.files + testCompile.classpath }
-        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/test-libs/${project.archivesBaseName}-${productFlavor.name}.dex") }
+        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/test/${project.archivesBaseName}-${productFlavor.name}.dex") }
 
         // Add a task to generate resource package
         def packageResources = project.tasks.add("package${productFlavor.name.capitalize()}TestResources", GenerateResourcePackage)
         packageResources.dependsOn generateManifestTask
-        packageResources.conventionMapping.outputFile = { project.file("$project.buildDir/test-libs/${project.archivesBaseName}-${productFlavor.name}.ap_") }
+        packageResources.conventionMapping.outputFile = { project.file("$project.buildDir/libs/test/${project.archivesBaseName}-${productFlavor.name}.ap_") }
         packageResources.sdkDir = sdkDir
         packageResources.conventionMapping.sourceDirectories =  { [] }
         packageResources.conventionMapping.androidManifestFile = { generateManifestTask.outputFile }
@@ -194,7 +194,7 @@ class AndroidPlugin implements Plugin<Project> {
         // Add a task to generate application package
         def packageApp = project.tasks.add("package${productFlavor.name.capitalize()}Test", PackageApplication)
         packageApp.dependsOn packageResources, dexTask
-        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/test-libs/${project.archivesBaseName}-${productFlavor.name}-unaligned.apk") }
+        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/test/${project.archivesBaseName}-${productFlavor.name}-unaligned.apk") }
         packageApp.sdkDir = sdkDir
         packageApp.conventionMapping.resourceFile = { packageResources.outputFile }
         packageApp.conventionMapping.dexFile = { dexTask.outputFile }
@@ -224,7 +224,7 @@ class AndroidPlugin implements Plugin<Project> {
         // Add a task to generate the manifest
         def generateManifestTask = project.tasks.add("generate${variant.name}Manifest", GenerateManifest)
         generateManifestTask.sourceFile = project.file('src/main/AndroidManifest.xml')
-        generateManifestTask.conventionMapping.outputFile = { project.file("$project.buildDir/manifests/$variant.dirName/AndroidManifest.xml") }
+        generateManifestTask.conventionMapping.outputFile = { project.file("$project.buildDir/manifests/main/$variant.dirName/AndroidManifest.xml") }
         generateManifestTask.conventionMapping.packageName = { getMainManifest().packageName }
         generateManifestTask.conventionMapping.versionCode = { productFlavor.productFlavor.versionCode }
         generateManifestTask.conventionMapping.versionName = { productFlavor.productFlavor.versionName }
@@ -232,7 +232,7 @@ class AndroidPlugin implements Plugin<Project> {
         // Add a task to generate resource source files
         def generateSourceTask = project.tasks.add("generate${variant.name}Source", GenerateResourceSource)
         generateSourceTask.dependsOn generateManifestTask
-        generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source/$variant.dirName") }
+        generateSourceTask.conventionMapping.outputDir = { project.file("$project.buildDir/source/main/$variant.dirName") }
         generateSourceTask.sdkDir = sdkDir
         generateSourceTask.conventionMapping.sourceDirectories =  {
             (main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
@@ -245,7 +245,7 @@ class AndroidPlugin implements Plugin<Project> {
         def compileTask = project.tasks.add(compileTaskName, Compile)
         compileTask.source main.java, buildType.mainSource.java, productFlavor.mainSource.java, generateSourceTask.outputs
         compileTask.classpath = main.compileClasspath
-        compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/$variant.dirName") }
+        compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/main/$variant.dirName") }
         // TODO - make this use convention mapping
         compileTask.doFirst {
             options.bootClasspath = getRuntimeJar()
@@ -259,11 +259,11 @@ class AndroidPlugin implements Plugin<Project> {
         def dexTask = project.tasks.add(dexTaskName, Dex)
         dexTask.sdkDir = sdkDir
         dexTask.conventionMapping.sourceFiles = { variant.runtimeClasspath }
-        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/${project.archivesBaseName}-${variant.baseName}.dex") }
+        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/main/${project.archivesBaseName}-${variant.baseName}.dex") }
 
         // Add a task to crunch resource files
         def crunchTask = project.tasks.add("crunch${variant.name}Resources", CrunchResources)
-        crunchTask.conventionMapping.outputDir = { project.file("$project.buildDir/resources/$variant.dirName") }
+        crunchTask.conventionMapping.outputDir = { project.file("$project.buildDir/resources/main/$variant.dirName") }
         crunchTask.sdkDir = sdkDir
         crunchTask.conventionMapping.sourceDirectories =  {
             (main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
@@ -272,7 +272,7 @@ class AndroidPlugin implements Plugin<Project> {
         // Add a task to generate resource package
         def packageResources = project.tasks.add("package${variant.name}Resources", GenerateResourcePackage)
         packageResources.dependsOn generateManifestTask, crunchTask
-        packageResources.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${variant.baseName}.ap_") }
+        packageResources.conventionMapping.outputFile = { project.file("$project.buildDir/libs/main/${project.archivesBaseName}-${variant.baseName}.ap_") }
         packageResources.sdkDir = sdkDir
         packageResources.conventionMapping.sourceDirectories =  {
             ([crunchTask.outputDir] + main.resources.srcDirs + productFlavor.mainSource.resources.srcDirs + buildType.mainSource.resources.srcDirs).findAll { it.exists() }
@@ -284,7 +284,7 @@ class AndroidPlugin implements Plugin<Project> {
         // Add a task to generate application package
         def packageApp = project.tasks.add("package${variant.name}", PackageApplication)
         packageApp.dependsOn packageResources, dexTask
-        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${variant.baseName}-unaligned.apk") }
+        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/main/${project.archivesBaseName}-${variant.baseName}-unaligned.apk") }
         packageApp.sdkDir = sdkDir
         packageApp.conventionMapping.resourceFile = { packageResources.outputFile }
         packageApp.conventionMapping.dexFile = { dexTask.outputFile }
@@ -293,7 +293,7 @@ class AndroidPlugin implements Plugin<Project> {
         def alignApp = project.tasks.add("zipalign${variant.name}", ZipAlign)
         alignApp.dependsOn packageApp
         alignApp.conventionMapping.inputFile = { packageApp.outputFile }
-        alignApp.conventionMapping.outputFile = { project.file("$project.buildDir/libs/${project.archivesBaseName}-${variant.baseName}.apk") }
+        alignApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/main/${project.archivesBaseName}-${variant.baseName}.apk") }
         alignApp.sdkDir = sdkDir
 
         // Add an assemble task
