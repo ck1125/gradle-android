@@ -67,7 +67,7 @@ class AndroidPlugin implements Plugin<Project> {
 
         project.afterEvaluate {
             if (productFlavors.isEmpty()) {
-                productFlavors.configure { main }
+                productFlavors.create('main')
             }
         }
 
@@ -170,10 +170,7 @@ class AndroidPlugin implements Plugin<Project> {
         testCompile.source test.java, productFlavorDimension.testSource.java
         testCompile.classpath = test.compileClasspath + productFlavorDimension.debugVariant.runtimeClasspath
         testCompile.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/test/$productFlavor.name") }
-        // TODO - make this use convention mapping
-        testCompile.doFirst {
-            options.bootClasspath = getRuntimeJar()
-        }
+        testCompile.options.bootClasspath = getRuntimeJar()
 
         // Add a dex task
         def dexTask = project.tasks.add("dex${productFlavor.name.capitalize()}Test", Dex)
@@ -257,10 +254,7 @@ class AndroidPlugin implements Plugin<Project> {
         compileTask.source main.java, buildType.mainSource.java, productFlavor.mainSource.java, { processResources.sourceOutputDir }
         compileTask.classpath = main.compileClasspath
         compileTask.conventionMapping.destinationDir = { project.file("$project.buildDir/classes/main/$variant.dirName") }
-        // TODO - make this use convention mapping
-        compileTask.doFirst {
-            options.bootClasspath = getRuntimeJar()
-        }
+        compileTask.options.bootClasspath = getRuntimeJar()
 
         // Wire up the runtime classpath
         variant.runtimeClasspath = project.files(compileTask.outputs, main.compileClasspath)
