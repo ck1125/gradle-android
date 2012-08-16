@@ -5,10 +5,10 @@ import org.gradle.api.tasks.SourceSet
 
 class ProductFlavorDimension {
     final ProductFlavor productFlavor
-    final Set<AndroidAppVariant> variants = []
+    final Set<ProductionAppVariant> variants = []
     final SourceSet mainSource
     final SourceSet testSource
-    AndroidAppVariant debugVariant
+    ProductionAppVariant debugVariant
 
     ProductFlavorDimension(ProductFlavor productFlavor, SourceSet mainSource, SourceSet testSource) {
         this.productFlavor = productFlavor

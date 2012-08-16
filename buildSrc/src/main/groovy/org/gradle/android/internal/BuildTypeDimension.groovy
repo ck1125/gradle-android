@@ -5,7 +5,7 @@ import org.gradle.api.tasks.SourceSet
 
 class BuildTypeDimension {
     final BuildType buildType
-    final Set<AndroidAppVariant> variants = []
+    final Set<ProductionAppVariant> variants = []
     final SourceSet mainSource
 
     BuildTypeDimension(BuildType buildType, SourceSet mainSource) {

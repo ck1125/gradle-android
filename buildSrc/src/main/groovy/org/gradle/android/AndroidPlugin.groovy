@@ -1,6 +1,5 @@
 package org.gradle.android
 
-import org.gradle.android.internal.AndroidAppVariant
 import org.gradle.android.internal.BuildTypeDimension
 import org.gradle.android.internal.ProductFlavorDimension
 import org.gradle.api.Plugin
@@ -10,11 +9,13 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.compile.Compile
 import org.gradle.android.internal.AndroidManifest
 import org.gradle.internal.reflect.Instantiator
-import org.gradle.android.internal.Packagable
-import org.gradle.android.internal.TestApp
+
+import org.gradle.android.internal.ApplicationVariant
+import org.gradle.android.internal.TestAppVariant
+import org.gradle.android.internal.ProductionAppVariant
 
 class AndroidPlugin implements Plugin<Project> {
-    private final Set<AndroidAppVariant> variants = []
+    private final Set<ProductionAppVariant> variants = []
     private final Map<String, BuildTypeDimension> buildTypes = [:]
     private final Map<String, ProductFlavorDimension> productFlavors = [:]
     private Project project
@@ -186,7 +187,7 @@ class AndroidPlugin implements Plugin<Project> {
         processResources.conventionMapping.packageName = { generateManifestTask.packageName }
         processResources.conventionMapping.includeFiles = { [getRuntimeJar()] }
 
-        def testApp = new TestApp(productFlavor)
+        def testApp = new TestAppVariant(productFlavor)
         testApp.runtimeClasspath = testCompile.outputs.files + testCompile.classpath
         testApp.resourcePackage = project.files({processResources.packageFile}) { builtBy processResources }
         addPackageTasks(testApp)
@@ -195,7 +196,7 @@ class AndroidPlugin implements Plugin<Project> {
     }
 
     private void addVariant(BuildTypeDimension buildType, ProductFlavorDimension productFlavor) {
-        def variant = new AndroidAppVariant(buildType.buildType, productFlavor.productFlavor)
+        def variant = new ProductionAppVariant(buildType.buildType, productFlavor.productFlavor)
         variants << variant
         buildType.variants << variant
         productFlavor.variants << variant
@@ -248,43 +249,43 @@ class AndroidPlugin implements Plugin<Project> {
         addPackageTasks(variant)
     }
 
-    private void addPackageTasks(Packagable packagable) {
+    private void addPackageTasks(ApplicationVariant variant) {
         // Add a dex task
-        def dexTaskName = "dex${packagable.name}"
+        def dexTaskName = "dex${variant.name}"
         def dexTask = project.tasks.add(dexTaskName, Dex)
         dexTask.sdkDir = sdkDir
-        dexTask.conventionMapping.sourceFiles = { packagable.runtimeClasspath }
-        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/${project.archivesBaseName}-${packagable.baseName}.dex") }
+        dexTask.conventionMapping.sourceFiles = { variant.runtimeClasspath }
+        dexTask.conventionMapping.outputFile = { project.file("${project.buildDir}/libs/${project.archivesBaseName}-${variant.baseName}.dex") }
 
         // Add a task to generate application package
-        def packageApp = project.tasks.add("package${packagable.name}", PackageApplication)
-        packageApp.dependsOn packagable.resourcePackage, dexTask
-        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/${project.archivesBaseName}-${packagable.baseName}-unaligned.apk") }
+        def packageApp = project.tasks.add("package${variant.name}", PackageApplication)
+        packageApp.dependsOn variant.resourcePackage, dexTask
+        packageApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/${project.archivesBaseName}-${variant.baseName}-unaligned.apk") }
         packageApp.sdkDir = sdkDir
-        packageApp.conventionMapping.resourceFile = { packagable.resourcePackage.singleFile }
+        packageApp.conventionMapping.resourceFile = { variant.resourcePackage.singleFile }
         packageApp.conventionMapping.dexFile = { dexTask.outputFile }
 
         def appTask = packageApp
 
-        if (packagable.zipAlign) {
+        if (variant.zipAlign) {
             // Add a task to zip align application package
-            def alignApp = project.tasks.add("zipalign${packagable.name}", ZipAlign)
+            def alignApp = project.tasks.add("zipalign${variant.name}", ZipAlign)
             alignApp.dependsOn packageApp
             alignApp.conventionMapping.inputFile = { packageApp.outputFile }
-            alignApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/${project.archivesBaseName}-${packagable.baseName}.apk") }
+            alignApp.conventionMapping.outputFile = { project.file("$project.buildDir/apk/${project.archivesBaseName}-${variant.baseName}.apk") }
             alignApp.sdkDir = sdkDir
 
             appTask = alignApp
         }
 
         // Add an assemble task
-        def assembleTask = project.tasks.add("assemble${packagable.name}")
+        def assembleTask = project.tasks.add("assemble${variant.name}")
         assembleTask.dependsOn appTask
-        assembleTask.description = "Assembles the ${packagable.description} application"
+        assembleTask.description = "Assembles the ${variant.description} application"
         assembleTask.group = "Build"
 
         // Add a task to install the application package
-        def installApp = project.tasks.add("install${packagable.name}", InstallApplication)
+        def installApp = project.tasks.add("install${variant.name}", InstallApplication)
         installApp.dependsOn appTask
         installApp.conventionMapping.packageFile = { appTask.outputFile }
         installApp.sdkDir = sdkDir
