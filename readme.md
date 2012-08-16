@@ -50,6 +50,7 @@ Have a look at the `basic/build.gradle` and `customized/build.gradle` build file
 * `sourceSets.$buildType.resources.srcDirs` - defaults to `src/$buildType/res`
 * `sourceSets.test.java.srcDirs` - defaults to `src/test/java`
 * `sourceSets.test$Flavor.java.srcDirs` - defaults to `src/test$Flavor/java`
+* `dependencies.compile` - compile time dependencies for all applications.
 
 ## Contents
 
